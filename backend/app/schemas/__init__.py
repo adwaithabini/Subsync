@@ -4,3 +4,8 @@ from app.schemas.auth import (
     UserResponse,
     TokenResponse
 )
+from app.schemas.product import (
+    ProductCreate,
+    ProductUpdate,
+    ProductResponse
+)
