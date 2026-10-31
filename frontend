@@ -1,0 +1,875 @@
+/**
+ * Complete self-contained React app with all requested pages, components, styles, state, routing,
+ * dark-mode glassmorphism theme, neon/glowing accents, all logic and UI fully functional.
+ *
+ * Run this inside a Create React App or Vite React environment with Tailwind CSS configured,
+ * lucide-react, recharts, and react-hot-toast installed to directly have it working.
+ *
+ * Required dependencies: react, react-dom, react-router-dom, tailwindcss, lucide-react, recharts, react-hot-toast
+ */
+
+import React, { useState, useEffect } from "react";
+import {
+  BrowserRouter,
+  Routes,
+  Route,
+  NavLink,
+  useLocation,
+} from "react-router-dom";
+import {
+  Activity,
+  Grid,
+  Settings as IconSettings,
+  Sliders,
+} from "lucide-react";
+import {
+  LineChart,
+  BarChart,
+  Line,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+} from "recharts";
+import toast, { Toaster } from "react-hot-toast";
+
+// ----- UTILS -----------------------------------
+function saveToLocalStorage(key, data) {
+  localStorage.setItem(key, JSON.stringify(data));
+}
+
+function loadFromLocalStorage(key, fallback) {
+  try {
+    const item = localStorage.getItem(key);
+    if (item) return JSON.parse(item);
+  } catch {}
+  return fallback;
+}
+
+// ----- STYLES: Add Tailwind directives to your global CSS:
+// @tailwind base;
+// @tailwind components;
+// @tailwind utilities;
+
+// And below CSS snippet (put in index.css or global.css):
+/*
+html, body, #root {
+  height: 100%;
+  font-family: 'Helvetica Neue', sans-serif;
+  background-color: #0f172a;
+  color: white;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+::selection {
+  background-color: #0ff;
+  color: #000;
+}
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background-color: #0ff;
+  border-radius: 3px;
+}
+*/
+
+// ----- GLOBALLY USED COMPONENTS -----------------
+
+const LoadingSpinner = ({ size = 24 }) => (
+  <div
+    className="border-4 border-t-cyan-400 border-x-transparent border-b-transparent rounded-full animate-spin"
+    style={{ width: size, height: size }}
+    aria-label="Loading"
+  />
+);
+
+const StatusToggle = ({ enabled, onChange, label }) => (
+  <button
+    onClick={() => onChange(!enabled)}
+    className={`relative inline-flex h-8 w-14 items-center rounded-full transition-shadow duration-300 focus:outline-none
+    ${enabled ? "bg-cyan-400 shadow-[0_0_8px_#0ff]" : "bg-gray-700"} `}
+    aria-pressed={enabled}
+    aria-label={label}
+  >
+    <span
+      className={`inline-block h-6 w-6 transform rounded-full bg-[#0f172a] transition-transform ${
+        enabled ? "translate-x-6" : "translate-x-1"
+      }`}
+    />
+  </button>
+);
+
+const Sidebar = () => {
+  const links = [
+    { to: "/", label: "Dashboard", Icon: Grid, exact: true },
+    { to: "/workspace", label: "Workspace", Icon: Sliders },
+    { to: "/analytics", label: "Analytics", Icon: Activity },
+    { to: "/settings", label: "Settings", Icon: IconSettings },
+  ];
+
+  return (
+    <nav
+      className="fixed top-0 left-0 h-full w-20 flex flex-col items-center bg-[#0f172a] bg-opacity-75 backdrop-blur-md border-r border-white/20 shadow-[0_0_10px_#0ff] z-50"
+      aria-label="Sidebar navigation"
+    >
+      <div className="pt-6 pb-8">
+        <h1
+          className="font-sans text-cyan-400 text-2xl tracking-wide"
+          style={{ fontFamily: "'Helvetica Neue', sans-serif" }}
+        >
+          BL
+        </h1>
+      </div>
+      <ul className="flex flex-col gap-8 items-center flex-grow">
+        {links.map(({ to, label, Icon, exact }) => (
+          <li key={to} className="group w-full">
+            <NavLink
+              to={to}
+              end={exact}
+              className={({ isActive }) =>
+                `flex justify-center py-4 w-full hover:bg-white/10 transition-colors rounded-r-lg ${
+                  isActive
+                    ? "bg-cyan-400 bg-opacity-30 border-l-4 border-cyan-400 shadow-[0_0_10px_#0ff]"
+                    : ""
+                }`
+              }
+              title={label}
+              aria-current={({ isActive }) => (isActive ? "page" : undefined)}
+            >
+              <Icon className="text-cyan-400 w-6 h-6" />
+            </NavLink>
+          </li>
+        ))}
+      </ul>
+
+      <div className="pb-6 select-none" aria-label="Sidebar footer">
+        &copy; 2026
+      </div>
+    </nav>
+  );
+};
+
+const Toasts = () => (
+  <Toaster
+    position="top-right"
+    toastOptions={{
+      style: {
+        background: "rgba(0,0,0,0.85)",
+        color: "#0ff",
+        fontWeight: "600",
+        fontFamily: "'Helvetica Neue', sans-serif",
+        border: "1px solid #0ff",
+        borderRadius: "8px",
+        boxShadow: "0 0 10px #0ff",
+      },
+    }}
+  />
+);
+
+// ----- PAGES ------------------------------------
+
+const Dashboard = () => {
+  const initialMetrics = {
+    activeUsers: 128,
+    uptimePercent: 99.9,
+    errorsToday: 2,
+    newSubscriptions: 17,
+  };
+
+  const initialActivities = [
+    "User 'Amala' subscribed to Pro Plan.",
+    "Error: Failed payment for user 'Rajan'.",
+    "Server uptime check passed.",
+    "User 'Divya' updated profile settings.",
+    "New workspace created by 'Arun'.",
+  ];
+
+  const [metrics, setMetrics] = useState(initialMetrics);
+  const [activities, setActivities] = useState(initialActivities);
+  const [serviceRunning, setServiceRunning] = useState(true);
+  const [shortcutCount, setShortcutCount] = useState(0);
+
+  // simulate live metrics update every 7 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setMetrics((prev) => ({
+        ...prev,
+        activeUsers: Math.max(
+          100,
+          Math.min(9999, prev.activeUsers + ((Math.random() * 10 - 5) | 0))
+        ),
+        errorsToday: Math.max(0, prev.errorsToday + (Math.random() > 0.7 ? 1 : 0)),
+      }));
+    }, 7000);
+    return () => clearInterval(interval);
+  }, []);
+
+  function handleToggleService(enabled) {
+    setServiceRunning(enabled);
+    setActivities((acts) => [`Service ${enabled ? "started" : "stopped"}.`, ...acts]);
+  }
+
+  function handleShortcut() {
+    setShortcutCount((c) => c + 1);
+    setActivities((acts) => [`Shortcut action triggered (${shortcutCount + 1})`, ...acts]);
+  }
+
+  return (
+    <main className="ml-20 p-8 min-h-screen bg-[#0f172a]">
+      <h2 className="text-4xl font-semibold mb-8 font-sans">Dashboard</h2>
+
+      {/* Summary Cards */}
+      <section className="grid grid-cols-4 gap-6 mb-12">
+        {[
+          { label: "Active Users", value: metrics.activeUsers },
+          { label: "Uptime %", value: metrics.uptimePercent.toFixed(2) },
+          { label: "Errors Today", value: metrics.errorsToday },
+          { label: "New Subscriptions", value: metrics.newSubscriptions },
+        ].map(({ label, value }) => (
+          <div
+            key={label}
+            className="p-6 rounded-xl bg-white/10 backdrop-blur-md border border-white/20 shadow-[0_0_15px_#0ff]"
+          >
+            <h3 className="text-xl mb-1">{label}</h3>
+            <p className="font-bold text-3xl">{value}</p>
+          </div>
+        ))}
+      </section>
+
+      {/* Service Toggle */}
+      <section className="mb-12">
+        <h3 className="text-2xl mb-2 font-sans">Service Status</h3>
+        <StatusToggle
+          enabled={serviceRunning}
+          onChange={handleToggleService}
+          label="Toggle Service Running Status"
+        />
+        <p className="mt-3">
+          The core service is currently: <strong>{serviceRunning ? "Running" : "Stopped"}</strong>
+        </p>
+      </section>
+
+      {/* Shortcuts */}
+      <section className="mb-12">
+        <h3 className="text-2xl mb-3 font-sans">Quick Actions</h3>
+        <button
+          onClick={handleShortcut}
+          className="px-5 py-3 bg-cyan-400 rounded-lg shadow-[0_0_10px_#0ff] font-semibold hover:bg-cyan-500 transition"
+          aria-label="Trigger shortcut action"
+        >
+          Trigger Shortcut
+        </button>
+      </section>
+
+      {/* Recent Activities */}
+      <section>
+        <h3 className="text-2xl mb-3 font-sans">Recent Activity Log</h3>
+        <ul className="max-h-48 overflow-y-auto space-y-2 border border-white/20 rounded-xl p-4 bg-white/10 backdrop-blur-md shadow-[0_0_15px_#0ff]">
+          {activities.length === 0 ? (
+            <p>No recent activities.</p>
+          ) : (
+            activities.map((act, i) => (
+              <li
+                key={i}
+                className="text-sm text-cyan-400 border-l-4 border-cyan-400 pl-3 italic"
+              >
+                {act}
+              </li>
+            ))
+          )}
+        </ul>
+      </section>
+    </main>
+  );
+};
+
+const Workspace = () => {
+  /*
+  Configuration list saved to local storage.
+  Task list with statuses.
+  Real-time status meters.
+  Loading spinner states.
+  New task inputs.
+  */
+
+  const STORAGE_KEY = "workspaceData";
+
+  const defaultConfigs = [
+    { id: 1, setting: "Enable Sync", value: true },
+    { id: 2, setting: "Max Retries", value: 3 },
+    { id: 3, setting: "Timeout (s)", value: 30 },
+  ];
+
+  const initialTable = [
+    { id: 1, task: "Fetch user data", status: "Completed" },
+    { id: 2, task: "Sync payment info", status: "Pending" },
+    { id: 3, task: "Refresh dashboard", status: "In Progress" },
+  ];
+
+  const [configs, setConfigs] = useState(loadFromLocalStorage(STORAGE_KEY, defaultConfigs));
+  const [table, setTable] = useState(initialTable);
+  const [loadingId, setLoadingId] = useState(null);
+  const [newTask, setNewTask] = useState("");
+  const [statusFilter, setStatusFilter] = useState("All");
+
+  useEffect(() => {
+    saveToLocalStorage(STORAGE_KEY, configs);
+  }, [configs]);
+
+  // Toggle config (boolean)
+  const toggleConfig = (id) => {
+    setConfigs((cfs) =>
+      cfs.map((c) =>
+        c.id === id
+          ? { ...c, value: typeof c.value === "boolean" ? !c.value : c.value }
+          : c
+      )
+    );
+  };
+
+  // Set numeric config
+  const changeNumberConfig = (id, val) => {
+    if (!isNaN(val) && val >= 0) {
+      setConfigs((cfs) => cfs.map((c) => (c.id === id ? { ...c, value: val } : c)));
+    }
+  };
+
+  // Start task: simulate async update with spinner
+  const startTask = (id) => {
+    setLoadingId(id);
+    // Also update status to "In Progress"
+    setTable((t) =>
+      t.map((task) =>
+        task.id === id && task.status !== "Completed"
+          ? { ...task, status: "In Progress" }
+          : task
+      )
+    );
+
+    setTimeout(() => {
+      setTable((t) =>
+        t.map((task) =>
+          task.id === id ? { ...task, status: "Completed" } : task
+        )
+      );
+      setLoadingId(null);
+    }, 2500);
+  };
+
+  // Add new task
+  const addTask = () => {
+    if (!newTask.trim()) return;
+    const newId = table.length ? Math.max(...table.map((t) => t.id)) + 1 : 1;
+    setTable([{ id: newId, task: newTask.trim(), status: "Pending" }, ...table]);
+    setNewTask("");
+  };
+
+  // Filtered tasks
+  const filteredTasks = statusFilter === "All" ? table : table.filter((t) => t.status === statusFilter);
+
+  function StatusMeter({ value, max, label }) {
+    const pct = Math.min(100, (value / max) * 100);
+    return (
+      <div className="p-4 rounded-xl bg-white/10 backdrop-blur-md border border-white/20 shadow-[0_0_15px_#0ff]">
+        <h4 className="font-semibold mb-1">{label}</h4>
+        <div className="w-full bg-gray-700 rounded-full h-4 overflow-hidden">
+          <div
+            className="bg-cyan-400 h-4 rounded-full shadow-[0_0_8px_#0ff] transition-all"
+            style={{ width: pct + "%" }}
+            aria-valuenow={value}
+            aria-valuemin={0}
+            aria-valuemax={max}
+            role="progressbar"
+          />
+        </div>
+        <p className="mt-1 text-sm text-right font-mono text-cyan-400">
+          {value} / {max}
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <main className="ml-20 p-8 max-w-5xl mx-auto min-h-screen space-y-10 bg-[#0f172a]">
+      <h2 className="text-4xl font-semibold mb-6 font-sans">Subsync Workspace</h2>
+
+      {/* Configuration */}
+      <section className="p-6 rounded-xl bg-white/10 backdrop-blur-md border border-white/20 shadow-[0_0_15px_#0ff]">
+        <h3 className="text-2xl mb-4 font-sans">Configuration</h3>
+        <div className="space-y-4">
+          {configs.map(({ id, setting, value }) => (
+            <div key={id} className="flex items-center justify-between">
+              <span>{setting}</span>
+              {typeof value === "boolean" ? (
+                <button
+                  onClick={() => toggleConfig(id)}
+                  className={`relative inline-flex h-8 w-14 items-center rounded-full transition-shadow duration-300 ${
+                    value ? "bg-cyan-400 shadow-[0_0_8px_#0ff]" : "bg-gray-700"
+                  }`}
+                  aria-pressed={value}
+                  aria-label={`Toggle ${setting}`}
+                >
+                  <span
+                    className={`inline-block h-6 w-6 transform rounded-full bg-[#0f172a] transition-transform ${
+                      value ? "translate-x-6" : "translate-x-1"
+                    }`}
+                  />
+                </button>
+              ) : (
+                <input
+                  type="number"
+                  className="w-20 rounded bg-transparent border border-white/30 px-2 py-1 text-right text-white focus:outline-none focus:ring-2 focus:ring-cyan-400"
+                  value={value}
+                  min={0}
+                  onChange={(e) => changeNumberConfig(id, +e.target.value)}
+                  aria-label={`Set value for ${setting}`}
+                />
+              )}
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* Status meters */}
+      <section className="grid grid-cols-3 gap-6">
+        <StatusMeter
+          value={configs.find((c) => c.setting === "Max Retries")?.value || 0}
+          max={10}
+          label="Retries"
+        />
+        <StatusMeter
+          value={configs.find((c) => c.setting === "Timeout (s)")?.value || 0}
+          max={60}
+          label="Timeout (seconds)"
+        />
+        <StatusMeter
+          value={configs.find((c) => c.setting === "Enable Sync")?.value ? 1 : 0}
+          max={1}
+          label="Sync Enabled"
+        />
+      </section>
+
+      {/* Task list */}
+      <section className="">
+        <h3 className="text-2xl mb-4 font-sans">Task List</h3>
+
+        {/* Filter */}
+        <div className="mb-4 flex gap-3 items-center">
+          <label htmlFor="statusFilter" className="font-semibold select-none">
+            Filter by Status:
+          </label>
+          <select
+            id="statusFilter"
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="bg-transparent border border-white/30 rounded px-3 py-1 text-white focus:outline-none focus:ring-2 focus:ring-cyan-400"
+          >
+            <option>All</option>
+            <option>Pending</option>
+            <option>In Progress</option>
+            <option>Completed</option>
+          </select>
+        </div>
+
+        <table className="w-full text-left border-collapse rounded-lg overflow-hidden bg-white/10 backdrop-blur-md border border-white/20 shadow-[0_0_15px_#0ff]">
+          <thead>
+            <tr className="border-b border-white/20">
+              <th className="px-4 py-2">Task</th>
+              <th className="px-4 py-2">Status</th>
+              <th className="px-4 py-2 text-center">Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filteredTasks.length === 0 ? (
+              <tr>
+                <td
+                  colSpan="3"
+                  className="px-4 py-2 italic text-cyan-400 text-center select-none"
+                >
+                  No tasks with selected status.
+                </td>
+              </tr>
+            ) : (
+              filteredTasks.map(({ id, task, status }) => (
+                <tr
+                  key={id}
+                  className="border-b border-white/10 hover:bg-white/10 transition select-none"
+                >
+                  <td className="px-4 py-2">{task}</td>
+                  <td className="px-4 py-2 font-semibold">{status}</td>
+                  <td className="px-4 py-2 text-center">
+                    {loadingId === id ? (
+                      <LoadingSpinner size={20} />
+                    ) : (
+                      <button
+                        onClick={() => startTask(id)}
+                        disabled={status === "Completed"}
+                        className={`px-3 py-1 rounded ${
+                          status === "Completed"
+                            ? "bg-gray-500 cursor-not-allowed"
+                            : "bg-cyan-400 hover:bg-cyan-600"
+                        } transition text-black font-semibold`}
+                        aria-label={`Start task ${task}`}
+                      >
+                        {status === "Completed" ? "Done" : "Start"}
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+
+        {/* Add task */}
+        <div className="mt-6 flex gap-3">
+          <input
+            type="text"
+            placeholder="New task description"
+            className="flex-grow rounded bg-transparent border border-white/30 px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-cyan-400"
+            value={newTask}
+            onChange={(e) => setNewTask(e.target.value)}
+            aria-label="New task description"
+          />
+          <button
+            onClick={addTask}
+            disabled={!newTask.trim()}
+            className={`px-5 py-2 rounded ${
+              newTask.trim()
+                ? "bg-cyan-400 hover:bg-cyan-600"
+                : "bg-gray-600 cursor-not-allowed"
+            } font-semibold transition`}
+          >
+            Add Task
+          </button>
+        </div>
+      </section>
+    </main>
+  );
+};
+
+const AnalyticsChart = () => {
+  const sampleData = [
+    { date: "2026-10-25", value: 45, count: 15 },
+    { date: "2026-10-26", value: 52, count: 20 },
+    { date: "2026-10-27", value: 38, count: 12 },
+    { date: "2026-10-28", value: 60, count: 25 },
+    { date: "2026-10-29", value: 55, count: 18 },
+    { date: "2026-10-30", value: 70, count: 30 },
+    { date: "2026-10-31", value: 65, count: 22 },
+  ];
+
+  const [chartType, setChartType] = useState("line");
+
+  return (
+    <article className="bg-white/10 backdrop-blur-md border border-white/20 rounded-xl p-6 shadow-[0_0_15px_#0ff] w-full max-w-5xl mx-auto">
+      <header className="mb-4 flex justify-between items-center">
+        <h3 className="text-2xl font-semibold font-sans">Interactive Analytics</h3>
+        <div className="flex gap-3">
+          <button
+            onClick={() => setChartType("line")}
+            className={`px-3 py-1 rounded ${
+              chartType === "line" ? "bg-cyan-400 text-black" : "bg-white/20"
+            } transition`}
+            aria-pressed={chartType === "line"}
+          >
+            Line Chart
+          </button>
+          <button
+            onClick={() => setChartType("bar")}
+            className={`px-3 py-1 rounded ${
+              chartType === "bar" ? "bg-cyan-400 text-black" : "bg-white/20"
+            } transition`}
+            aria-pressed={chartType === "bar"}
+          >
+            Bar Chart
+          </button>
+        </div>
+      </header>
+
+      <ResponsiveContainer width="100%" height={300}>
+        {chartType === "line" ? (
+          <LineChart data={sampleData}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#0ff" />
+            <XAxis dataKey="date" stroke="#0ff" />
+            <YAxis stroke="#0ff" />
+            <Tooltip contentStyle={{ backgroundColor: "#0f172a", border: "none" }} />
+            <Legend />
+            <Line
+              type="monotone"
+              dataKey="value"
+              stroke="#0ff"
+              strokeWidth={3}
+              activeDot={{ r: 6 }}
+            />
+          </LineChart>
+        ) : (
+          <BarChart data={sampleData}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#0ff" />
+            <XAxis dataKey="date" stroke="#0ff" />
+            <YAxis stroke="#0ff" />
+            <Tooltip contentStyle={{ backgroundColor: "#0f172a", border: "none" }} />
+            <Legend />
+            <Bar dataKey="count" fill="#0ff" />
+          </BarChart>
+        )}
+      </ResponsiveContainer>
+    </article>
+  );
+};
+
+const Analytics = () => {
+  const logsData = [
+    { id: 1, description: "System boot completed", time: "09:00 AM" },
+    { id: 2, description: "User Amala logged in", time: "09:14 AM" },
+    { id: 3, description: "Data sync started", time: "09:30 AM" },
+    { id: 4, description: "Payment processed", time: "10:00 AM" },
+    { id: 5, description: "User Divya updated settings", time: "10:15 AM" },
+  ];
+
+  const [filter, setFilter] = useState("");
+  const [filteredLogs, setFilteredLogs] = useState(logsData);
+
+  function handleFilterChange(e) {
+    const val = e.target.value;
+    setFilter(val);
+    setFilteredLogs(
+      logsData.filter((log) =>
+        log.description.toLowerCase().includes(val.toLowerCase())
+      )
+    );
+  }
+
+  function handleExport() {
+    const csvContent =
+      "data:text/csv;charset=utf-8," +
+      ["id,description,time"]
+        .concat(filteredLogs.map((l) => `${l.id},"${l.description}",${l.time}`))
+        .join("\n");
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.href = encodedUri;
+    link.download = "logs_export.csv";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast.success("Logs exported successfully!");
+  }
+
+  return (
+    <main className="ml-20 p-8 max-w-6xl mx-auto min-h-screen space-y-10 bg-[#0f172a]">
+      <h2 className="text-4xl font-semibold mb-6 font-sans">Analytics & Logs</h2>
+
+      {/* Chart */}
+      <section>
+        <AnalyticsChart />
+      </section>
+
+      {/* Logs */}
+      <section>
+        <h3 className="text-2xl mb-3 font-sans">Live Status Logs</h3>
+        <div className="flex gap-4 mb-4 items-center max-w-md">
+          <input
+            type="text"
+            placeholder="Filter logs"
+            className="flex-grow rounded bg-transparent border border-white/30 px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-cyan-400"
+            value={filter}
+            onChange={handleFilterChange}
+            aria-label="Filter logs"
+          />
+          <button
+            onClick={handleExport}
+            className="px-4 py-2 rounded bg-cyan-400 hover:bg-cyan-600 shadow-[0_0_10px_#0ff] font-semibold transition"
+          >
+            Export CSV
+          </button>
+        </div>
+
+        <ul className="max-h-64 overflow-y-auto border border-white/20 rounded-xl bg-white/10 backdrop-blur-md shadow-[0_0_15px_#0ff] p-4 space-y-2 text-sm divide-y divide-white/20">
+          {filteredLogs.length === 0 && (
+            <li className="italic text-center text-cyan-400 select-none">No logs found.</li>
+          )}
+          {filteredLogs.map(({ id, description, time }) => (
+            <li key={id} className="flex justify-between py-1 select-none">
+              <span>{description}</span>
+              <time className="text-cyan-400 font-mono">{time}</time>
+            </li>
+          ))}
+        </ul>
+      </section>
+    </main>
+  );
+};
+
+const Settings = () => {
+  const STORAGE_KEY = "userSettings";
+
+  const defaultSettings = {
+    username: "user123",
+    email: "user@example.com",
+    darkMode: true,
+    notifications: true,
+    language: "English",
+  };
+
+  const languages = ["English", "Spanish", "French", "German", "Hindi"];
+
+  const [settings, setSettings] = useState(loadFromLocalStorage(STORAGE_KEY, defaultSettings));
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    // Sync dark mode class on <html> element
+    if (settings.darkMode) {
+      document.documentElement.classList.add("dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+    }
+  }, [settings.darkMode]);
+
+  function handleChange(field, value) {
+    setSettings((prev) => ({ ...prev, [field]: value }));
+  }
+
+  async function handleSave(e) {
+    e.preventDefault();
+    setSaving(true);
+    // Simulate save delay
+    await new Promise((r) => setTimeout(r, 1500));
+    saveToLocalStorage(STORAGE_KEY, settings);
+    toast.success("Settings saved!");
+    setSaving(false);
+  }
+
+  return (
+    <main className="ml-20 p-8 max-w-lg mx-auto min-h-screen space-y-8 bg-[#0f172a]">
+      <h2 className="text-4xl font-semibold mb-8 font-sans">Settings & Preferences</h2>
+
+      <form onSubmit={handleSave} className="space-y-6" aria-label="Settings form">
+        {/* Username */}
+        <div>
+          <label htmlFor="username" className="block mb-2 font-semibold select-none">
+            Username
+          </label>
+          <input
+            id="username"
+            type="text"
+            className="w-full rounded bg-transparent border border-white/30 px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-cyan-400"
+            value={settings.username}
+            onChange={(e) => handleChange("username", e.target.value)}
+            required
+            autoComplete="username"
+          />
+        </div>
+
+        {/* Email */}
+        <div>
+          <label htmlFor="email" className="block mb-2 font-semibold select-none">
+            Email
+          </label>
+          <input
+            id="email"
+            type="email"
+            className="w-full rounded bg-transparent border border-white/30 px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-cyan-400"
+            value={settings.email}
+            onChange={(e) => handleChange("email", e.target.value)}
+            required
+            autoComplete="email"
+          />
+        </div>
+
+        {/* Dark Mode */}
+        <div className="flex items-center justify-between">
+          <span className="font-semibold select-none">Dark Mode</span>
+          <StatusToggle
+            enabled={settings.darkMode}
+            onChange={(val) => handleChange("darkMode", val)}
+            label="Toggle Dark Mode"
+          />
+        </div>
+
+        {/* Notifications */}
+        <div className="flex items-center justify-between">
+          <span className="font-semibold select-none">Enable Notifications</span>
+          <StatusToggle
+            enabled={settings.notifications}
+            onChange={(val) => handleChange("notifications", val)}
+            label="Toggle Notifications"
+          />
+        </div>
+
+        {/* Language */}
+        <div>
+          <label htmlFor="language" className="block mb-2 font-semibold select-none">
+            Language
+          </label>
+          <select
+            id="language"
+            value={settings.language}
+            onChange={(e) => handleChange("language", e.target.value)}
+            className="w-full rounded bg-transparent border border-white/30 px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-cyan-400"
+          >
+            {languages.map((lang) => (
+              <option key={lang} value={lang}>
+                {lang}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* Save Button */}
+        <button
+          type="submit"
+          disabled={saving}
+          className={`w-full py-3 rounded font-semibold transition ${
+            saving ? "bg-gray-600 cursor-not-allowed" : "bg-cyan-400 hover:bg-cyan-600"
+          }`}
+          aria-busy={saving}
+        >
+          {saving ? "Saving..." : "Save Settings"}
+        </button>
+      </form>
+    </main>
+  );
+};
+
+// ----- APP: MAIN ENTRY & ROUTER ------------------
+
+export default function App() {
+  // Add 'dark' mode class to document by default
+  useEffect(() => {
+    document.documentElement.classList.add("dark");
+  }, []);
+
+  // Scroll reset on route change (UX detail)
+  const ScrollToTopOnRouteChange = () => {
+    const { pathname } = useLocation();
+    useEffect(() => window.scrollTo(0, 0), [pathname]);
+    return null;
+  };
+
+  return (
+    <BrowserRouter>
+      <div className="flex min-h-screen font-sans">
+        <Sidebar />
+        <div className="flex-grow bg-[#0f172a] min-h-screen overflow-auto transition-colors duration-500">
+          <ScrollToTopOnRouteChange />
+          <Routes>
+            <Route path="/" element={<Dashboard />} />
+            <Route path="/workspace" element={<Workspace />} />
+            <Route path="/analytics" element={<Analytics />} />
+            <Route path="/settings" element={<Settings />} />
+            <Route path="*" element={<Dashboard />} />
+          </Routes>
+        </div>
+      </div>
+      <Toasts />
+    </BrowserRouter>
+  );
+}
