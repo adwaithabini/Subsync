@@ -1,4 +1,6 @@
 from fastapi import FastAPI
+from sqlalchemy import text
+from app.database import engine
 
 app = FastAPI(
     title="Subsync API",
@@ -21,3 +23,20 @@ def health_check():
     return {
         "status": "healthy"
     }
+
+@app.get("/test-db")
+def test_database():
+    try:
+        with engine.connect() as connection:
+            connection.execute(text("SELECT 1"))
+
+        return {
+            "status": "success",
+            "message": "Neon PostgreSQL connected successfully!"
+        }
+
+    except Exception as e:
+        return {
+            "status": "error",
+            "message": str(e)
+        }
