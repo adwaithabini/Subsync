@@ -4,6 +4,8 @@ from app.database import engine,Base
 from app.models import User
 from app.routes.auth import router as auth_router
 from app.routes.products import router as products_router
+from app.routes.variants import router as variants_router
+from app.routes.subscription_plans import router as subscription_plans_router
 
 app = FastAPI(
     title="Subsync API",
@@ -14,6 +16,8 @@ Base.metadata.create_all(bind=engine)
 
 app.include_router(auth_router)
 app.include_router(products_router)
+app.include_router(variants_router)
+app.include_router(subscription_plans_router)
 
 @app.get("/")
 def home():

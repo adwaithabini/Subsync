@@ -1,10 +1,13 @@
+from decimal import Decimal
+
 from sqlalchemy import (
     Column,
     Integer,
     String,
     Text,
     Boolean,
-    DateTime
+    DateTime,
+    Numeric
 )
 from sqlalchemy.sql import func
 
@@ -12,29 +15,21 @@ from app.database import Base
 
 
 class Product(Base):
-
     __tablename__ = "products"
 
     id = Column(Integer, primary_key=True, index=True)
-
     name = Column(String(150), nullable=False)
-
     description = Column(Text, nullable=True)
-
-    sku = Column(
-        String(100),
-        unique=True,
-        index=True,
-        nullable=False
-    )
-
+    sku = Column(String(100), unique=True, index=True, nullable=False)
     category = Column(String(100), nullable=True)
 
-    is_active = Column(
-        Boolean,
-        default=True,
-        nullable=False
+    base_price = Column(
+        Numeric(10, 2),
+        nullable=False,
+        default=Decimal("0.00")
     )
+
+    is_active = Column(Boolean, default=True, nullable=False)
 
     created_at = Column(
         DateTime(timezone=True),
