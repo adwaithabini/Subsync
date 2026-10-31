@@ -7,6 +7,8 @@ from app.routes.products import router as products_router
 from app.routes.variants import router as variants_router
 from app.routes.subscription_plans import router as subscription_plans_router
 from app.routes.customer_subscriptions import router as customer_subscriptions_router
+from app.routes.billing import router as billing_router
+
 
 
 
@@ -22,6 +24,7 @@ app.include_router(products_router)
 app.include_router(variants_router)
 app.include_router(subscription_plans_router)
 app.include_router(customer_subscriptions_router)
+app.include_router(billing_router)
 
 @app.get("/")
 def home():
