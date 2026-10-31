@@ -1,6 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from app.dependencies import get_current_user
+from app.dependencies import get_current_user, require_roles
+from app.roles import UserRole
+
 
 from app.database import SessionLocal
 from app.models import User
@@ -47,11 +49,11 @@ def register_user(user_data: UserRegister, db: Session = Depends(get_db)):
         )
 
     new_user = User(
-        full_name=user_data.full_name,
-        email=user_data.email,
-        hashed_password=hash_password(user_data.password),
-        role="customer"
-    )
+    full_name=user_data.full_name,
+    email=user_data.email,
+    hashed_password=hash_password(user_data.password),
+    role=UserRole.CUSTOMER.value
+)
 
     db.add(new_user)
     db.commit()
@@ -98,3 +100,4 @@ def get_my_profile(
     current_user: User = Depends(get_current_user)
 ):
     return current_user
+
