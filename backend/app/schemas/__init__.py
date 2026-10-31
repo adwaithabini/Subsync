@@ -20,3 +20,8 @@ from app.schemas.subscription_plan import (
     SubscriptionPlanUpdate,
     SubscriptionPlanResponse
 )
+from app.schemas.customer_subscription import (
+    CustomerSubscriptionCreate,
+    CustomerSubscriptionUpdate,
+    CustomerSubscriptionResponse
+)
