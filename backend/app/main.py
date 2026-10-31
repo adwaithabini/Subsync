@@ -1,13 +1,14 @@
 from fastapi import FastAPI
 from sqlalchemy import text
-from app.database import engine
+from app.database import engine,Base
+from app.models import User
 
 app = FastAPI(
     title="Subsync API",
     description="Subscription and Billing Management System",
     version="1.0.0"
 )
-
+Base.metadata.create_all(bind=engine)
 
 @app.get("/")
 def home():
