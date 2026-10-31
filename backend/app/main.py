@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from sqlalchemy import text
 from app.database import engine,Base
 from app.models import User
+from app.routes.auth import router as auth_router
 
 app = FastAPI(
     title="Subsync API",
@@ -9,6 +10,8 @@ app = FastAPI(
     version="1.0.0"
 )
 Base.metadata.create_all(bind=engine)
+
+app.include_router(auth_router)
 
 @app.get("/")
 def home():

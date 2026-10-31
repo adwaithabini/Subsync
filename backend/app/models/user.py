@@ -28,10 +28,11 @@ class User(Base):
     hashed_password = Column(String(255), nullable=False)
 
     role = Column(
-        String(30),
-        nullable=False,
-        default="customer"
-    )
+    String(30),
+    nullable=False,
+    default="customer",
+    server_default="customer"
+)
 
     is_active = Column(Boolean, default=True, nullable=False)
 
